@@ -1,5 +1,5 @@
 FROM node:alpine
 WORKDIR /svr/app
-COPY . /srv/app
-RUN yarn
+COPY . /svr/app/
+RUN yarn -D && yarn build
 CMD node lib/index.js

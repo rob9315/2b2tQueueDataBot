@@ -1,71 +1,53 @@
-//@ts-check
-import mineflayer from 'mineflayer';
-// const XMLHttpRequest = require('xmlhttprequest').XMLHttpRequest;
+import { createClient } from 'minecraft-protocol';
 import fetch from 'node-fetch';
 import { appendFileSync } from 'fs';
 
-let queueData: [number[], number[]] = [[], []];
+// if (!process.env['MC_CREDS']) 
+const credError = ()=> process.exit((console.error('please provide credentials in format: `email:password`') as never) ?? 1);
 
-const formattedTime = ()=>new Date(Date.now()).toLocaleString('en-US');
-const timeLog = (...strings: string[])=> console.log(`[${formattedTime()}] ${strings.join(' ')}`)
-const timeError = (...errors: (string | Error)[]) => console.error(`[${formattedTime()}] ${errors.join(' ')}`);
-const timeWarn = (...warnings: string[]) => console.warn(`[${formattedTime()}] ${warnings.join(' ')}`);
 
-//@ts-ignore
-if (!process.env['MC_CREDS']) process.exit(console.error('please provide credentials in format: `email:password`'));
-
-const bot = mineflayer.createBot({
-  host: '2b2t.org',
-  //@ts-ignore
-  username: process.env['MC_CREDS'].match(/.+(?=:)/)[0],
-  //@ts-ignore
-  password: process.env['MC_CREDS'].match(/(?<=:).+/)[0],
-  version: '1.12.2',
-});
-
-bot._client.on('packet', (data, meta) => {
-  switch (meta.name) {
-    case 'playerlist_header':
-      try {
-        newQueuePos(JSON.parse(data.header).text.split('\n')[5].substring(25));
-      } catch {
-        console.log('an error occured reading the current queue position.');
-      }
-      break;
-    case 'chat':
-      !!JSON.parse(data.message)[0]?.text && newQueuePos(JSON.parse(data.message)[0].text);
-      if (JSON.parse(data.message).text === 'Connecting to the server...') uploadQueueData();
-      break;
-  }
-});
-
-function newQueuePos(pos: number | 'None') {
-  if (queueData[0][queueData[0].length - 1] === pos) return;
-  if (pos === 'None') return timeLog('Joined Queue');
-  queueData[0].push(pos);
-  queueData[1].push(Date.now() / 1000);
-  timeLog(`${pos}`);
-}
-
-function uploadQueueData() {
-  //@ts-ignore
-  fetch('https://hastebin.com/documents', {
-    body: JSON.stringify(queueData),
-    method: 'POST',
-  }).then((res) =>
-    res.json().then((json) => {
-      timeWarn(`https://hastebin.com/${json.key}`);
-      appendFileSync('.queue', `\nhttps://hastebin.com/${json.key}`);
-    })
-  );
-}
-
-const err = (string: string | Error) => {
-  timeError(string);
-  appendFileSync('.crashqueue', `\n${JSON.stringify(queueData)}`);
-  uploadQueueData();
-  process.exit();
-};
-
-bot._client.on('end', err);
-bot._client.on('error', err);
+(async () => {
+  while (true)
+    try {
+      console.warn(
+        await new Promise<string>((res, rej) => {
+          let queueData: [number[], number[]] = [[], []];
+          const client = createClient({
+            host: '2b2t.org',
+            username: (process.env['MC_CREDS'] as string).match(/.+(?=:)/)?.[0] ?? credError(),
+            password: (process.env['MC_CREDS'] as string).match(/(?<=:).+/)?.[0] ?? credError(),
+            version: '1.12.2',
+          });
+          client.on('packet', async (data, meta) => {
+            switch (meta.name) {
+              case 'playerlist_header':
+                try {
+                  newQueuePos(JSON.parse(data.header).text.split('\n')[5].substring(25));
+                } catch {
+                  res(`success!\ndata: https://hastebin.com/${await uploadQueueData()}`);
+                }
+                break;
+              case 'chat':
+                let pos = (JSON.parse(data.message)[0]?.text as string | undefined)?.match(/^[0-9]+&/)?.[0];
+                if (pos) newQueuePos(Number(pos));
+                break;
+            }
+          });
+          function newQueuePos(pos: number | 'None') {
+            if (queueData[0][queueData[0].length - 1] === pos || pos === 'None') return;
+            if (!queueData[0][queueData[0].length - 1]) console.warn('Joined Queue');
+            queueData[0].push(pos);
+            queueData[1].push(Date.now() / 1000);
+          }
+          async function uploadQueueData(file = '.queue') {
+            let key = (await (await fetch('https://hastebin.com/documents', { body: JSON.stringify(queueData), method: 'POST' })).json()).key as string;
+            appendFileSync(file, `\nhttps://hastebin.com/documents/${key}`);
+            return key;
+          }
+          const err = async () => (JSON.stringify(queueData) !== JSON.stringify([[], []]) ? res(`error: https://hastebin.com/${await uploadQueueData('.crashqueue')}`) : rej());
+          client.on('end', err);
+          client.on('error', err);
+        })
+      );
+    } catch {}
+})();

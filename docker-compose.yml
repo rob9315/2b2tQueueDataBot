@@ -1,0 +1,7 @@
+version: 2.1
+services:
+  2b2tqueuedatabot:
+    build: .
+    restart: unless-stopped
+    environment:
+      MC_CREDS: email:password
