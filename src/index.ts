@@ -38,9 +38,8 @@ const credError = () => process.exit((console.error('please provide credentials 
           //   queueData[0].push(pos);
           //   queueData[1].push(Date.now() / 1000);
           // }
-          // const err = async () => (JSON.stringify(queueData) !== JSON.stringify([[], []]) ? res(`error: https://hastebin.com/${await uploadQueueData('.crashqueue')}`) : rej());
-          // client.on('end', err);
-          // client.on('error', err);
+          client.on('end', rej);
+          client.on('error', rej);
         })
       );
     } catch {}
