@@ -17,19 +17,19 @@ const credError = () => process.exit((console.error('please provide credentials 
             password: (process.env['MC_CREDS'] as string).match(/(?<=:).+/)?.[0] ?? credError(),
             version: '1.12.2',
           });
-          async function uploadQueueData(file = '.queue') {
-            let key = (await (await fetch('https://hastebin.com/documents', { body: JSON.stringify(queueData), method: 'POST' })).json()).key as string;
-            appendFileSync(file, `\nhttps://hastebin.com/documents/${key}`);
-            return key;
-          }
+          // async function uploadQueueData(file = '.queue') {
+          //   let key = (await (await fetch('https://hastebin.com/documents', { body: JSON.stringify(queueData), method: 'POST' })).json()).key as string;
+          //   appendFileSync(file, `\nhttps://hastebin.com/documents/${key}`);
+          //   return key;
+          // }
           client.on('packet', async (data, meta) => {
             switch (meta.name) {
               case 'teams':
-                const key = await uploadQueueData(JSON.stringify({ data, meta }));
-                // appendFileSync('datalinks.log', 'https://hastebin.com/documents/'+key);
+                // const key = JSON.stringify({ data, meta });
+                appendFileSync(Date.now() + '.json', JSON.stringify({ data, meta }));
                 client.end('');
                 await new Promise((res) => setTimeout(res, 60000));
-                res(key);
+                res(`${Date.now()}` + `${data.players.length}`);
             }
           });
           // function newQueuePos(pos: number | 'None') {
