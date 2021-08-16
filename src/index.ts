@@ -26,7 +26,7 @@ const credError = () => process.exit((console.error('please provide credentials 
             switch (meta.name) {
               case 'teams':
                 // const key = JSON.stringify({ data, meta });
-                appendFileSync(Date.now() + '.json', JSON.stringify({ data, meta }));
+                appendFileSync('queue/' + Date.now() + '.json', JSON.stringify({ players: data.players, meta }, null, 2));
                 client.end('');
                 await new Promise((res) => setTimeout(res, 60000));
                 res(`${Date.now()}` + `${data.players.length}`);
