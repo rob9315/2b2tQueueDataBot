@@ -1,46 +1,25 @@
-import { createClient } from 'minecraft-protocol';
-import fetch from 'node-fetch';
-import { appendFileSync } from 'fs';
+import { appendFileSync, readFileSync } from 'fs';
+import { Client, createClient } from 'minecraft-protocol';
 
-// if (!process.env['MC_CREDS'])
-const credError = () => process.exit((console.error('please provide credentials in format: `email:password`') as never) ?? 1);
+const config = JSON.parse(readFileSync('config.json').toString());
 
+let failCount = 0;
 (async () => {
-  while (true)
-    try {
-      console.warn(
-        await new Promise<string>((res, rej) => {
-          let queueData: [number[], number[]] = [[], []];
-          const client = createClient({
-            host: '2b2t.org',
-            username: (process.env['MC_CREDS'] as string).match(/.+(?=:)/)?.[0] ?? credError(),
-            password: (process.env['MC_CREDS'] as string).match(/(?<=:).+/)?.[0] ?? credError(),
-            version: '1.12.2',
-          });
-          // async function uploadQueueData(file = '.queue') {
-          //   let key = (await (await fetch('https://hastebin.com/documents', { body: JSON.stringify(queueData), method: 'POST' })).json()).key as string;
-          //   appendFileSync(file, `\nhttps://hastebin.com/documents/${key}`);
-          //   return key;
-          // }
-          client.on('packet', async (data, meta) => {
-            switch (meta.name) {
-              case 'teams':
-                // const key = JSON.stringify({ data, meta });
-                appendFileSync('queue/' + Date.now() + '.json', JSON.stringify({ players: data.players, meta }, null, 2));
-                client.end('');
-                await new Promise((res) => setTimeout(res, 60000));
-                res(`${Date.now()}` + `${data.players.length}`);
+  while (failCount < 5) {
+    console.log(
+      await new Promise((res) => {
+        createClient(config)
+          .on('packet', async function (this: Client, data, { name }) {
+            if (name === 'teams' && !data.players.includes(this.username)) {
+              appendFileSync('2b2t.nosql', JSON.stringify({ players: data.players, time: Date.now() }) + '\n');
+              this.end('Data collected');
+              res('Data collected');
             }
-          });
-          // function newQueuePos(pos: number | 'None') {
-          //   if (queueData[0][queueData[0].length - 1] === pos || pos === 'None') return;
-          //   if (!queueData[0][queueData[0].length - 1]) console.warn('Joined Queue');
-          //   queueData[0].push(pos);
-          //   queueData[1].push(Date.now() / 1000);
-          // }
-          client.on('end', rej);
-          client.on('error', rej);
-        })
-      );
-    } catch {}
+          })
+          .on('end', (reason: string) => reason != 'Data collected' && ++failCount && res(`Error #${failCount}: ${reason}`))
+          .on('error', (reason: string) => reason != 'Data collected' && ++failCount && res(`Error #${failCount}: ${reason}`));
+      })
+    );
+    await new Promise((res) => setTimeout(res, 30000));
+  }
 })();
