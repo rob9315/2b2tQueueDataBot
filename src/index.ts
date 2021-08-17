@@ -20,6 +20,6 @@ let failCount = 0;
           .on('error', (reason: string) => reason != 'Data collected' && ++failCount && res(`Error #${failCount}: ${reason}`));
       })
     );
-    await new Promise((res) => setTimeout(res, 30000));
+    await new Promise((res) => setTimeout(res, 60000));
   }
 })();
