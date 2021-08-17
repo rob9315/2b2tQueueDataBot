@@ -1,6 +1,11 @@
 {
-  "username": "",
-  "password": "",
+  "credentials": [
+    {
+      "username": "example@domain.com",
+      "password":"P@$ßW0RD"
+    }
+  ],
   "host": "connect.2b2t.org",
-  "version": "1.12.2"
+  "version": "1.12.2",
+  "clientToken": "cc653633-f004-4dc4-aa69-3e3a5003e4bc"
 }
